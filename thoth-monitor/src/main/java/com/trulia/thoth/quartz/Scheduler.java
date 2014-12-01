@@ -2,6 +2,7 @@ package com.trulia.thoth.quartz;
 
 import com.trulia.thoth.monitor.AvailableMonitors;
 import com.trulia.thoth.pojo.ServerDetail;
+import com.trulia.thoth.util.IgnoredServers;
 import com.trulia.thoth.util.ServerCache;
 import com.trulia.thoth.utility.Mailer;
 import org.quartz.*;
@@ -33,14 +34,6 @@ public class Scheduler {
   @Autowired
   private Mailer mailer;
 
-  private void retrieveIgnoredServerDetails(){
-    ignoredServerDetails = new ArrayList<ServerDetail>();
-    for (String ignoredServer: ignoredServers.split(",")){
-      String[] splitted = ignoredServer.split(";");
-      if (splitted.length % 4 == 0) ignoredServerDetails.add(new ServerDetail(splitted[0], splitted[3], splitted[1], splitted[2]));
-    }
-  }
-
   public void init() throws SchedulerException {
     JobDetail workerJob = JobBuilder.newJob(MonitorJob.class)
             .withIdentity("monitorJob", "group1").build();
@@ -56,7 +49,7 @@ public class Scheduler {
     scheduler.start();
     scheduler.getContext().put("thothIndexURI", thothIndexURI);
     scheduler.getContext().put("serverCache", serverCache);
-    retrieveIgnoredServerDetails();
+    this.ignoredServerDetails = new IgnoredServers(ignoredServers).getIgnoredServersDetail();
     scheduler.getContext().put("ignoredServers", ignoredServerDetails);
     scheduler.getContext().put("isPredictorMonitoringEnabled", isThothPredictorEnabled);
     scheduler.getContext().put("predictorMonitorUrl", thothPredictorUri);

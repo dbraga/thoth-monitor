@@ -5,6 +5,7 @@ import com.trulia.thoth.monitor.Monitor;
 import com.trulia.thoth.monitor.MonitorResult;
 import com.trulia.thoth.monitor.PredictorModelHealthMonitor;
 import com.trulia.thoth.pojo.ServerDetail;
+import com.trulia.thoth.util.IgnoredServers;
 import com.trulia.thoth.util.ServerCache;
 import com.trulia.thoth.util.ThothServers;
 import com.trulia.thoth.utility.Mailer;
@@ -40,22 +41,6 @@ public class MonitorJob implements Job {
   private String predictorMonitorUrl = "";
   private String predictorMonitorHealthScoreThreshold = "";
 
-  /**
-   * Check if server is part of the ignored servers
-    * @param serverDetail server to check
-   * @return true if ignored , false if not
-   */
-  private boolean isIgnored(ServerDetail serverDetail){
-    for (ServerDetail toCheck: ignoredServerDetails){
-      if ((toCheck.getName().equals(serverDetail.getName())) &&
-          (toCheck.getCore().equals(serverDetail.getCore())) &&
-          (toCheck.getPool().equals(serverDetail.getPool())) &&
-          (toCheck.getPort().equals(serverDetail.getPort()))){
-        return true;
-      }
-    }
-    return false;
-  }
 
   private void monitorThothPredictor(SchedulerContext schedulerContext){
     try {
@@ -137,6 +122,7 @@ public class MonitorJob implements Job {
       historicalDataThoth = new HttpSolrServer(schedulerContext.get("thothIndexURI") + shrankThothCore);
       serverCache = (ServerCache) schedulerContext.get("serverCache");
       ignoredServerDetails = (ArrayList<ServerDetail>) schedulerContext.get("ignoredServers");
+      IgnoredServers ignoredServers = new IgnoredServers(ignoredServerDetails);
       isPredictorMonitoringEnabled = (Boolean) schedulerContext.get("isPredictorMonitoringEnabled");
       availableMonitors = (AvailableMonitors) schedulerContext.get("availableMonitors");
       mailer = (Mailer) schedulerContext.get("mailer");
@@ -147,7 +133,7 @@ public class MonitorJob implements Job {
       List<ServerDetail> serversToMonitor = new ThothServers().getList(realTimeThoth);
       System.out.println("Fetching information about the servers done. Start the monitoring");
       for (ServerDetail serverDetail: serversToMonitor){
-        if (isIgnored(serverDetail)) continue;  // Skip server if ignored
+        if (ignoredServers.isServerIgnored(serverDetail)) continue;  // Skip server if ignored
         System.out.println("Start monitoring server (" + serverDetail.getName()+") port(" + serverDetail.getPort()+") coreName("+ serverDetail.getCore()+ ")");
         executeMonitorsConcurrently(serverDetail);
       }
